@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Task Board</title>
+    <script type="module" src="{{ url_for('static', path='/firebase-login.js') }}"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(to right, #3a0ca3, #4361ee, #4cc9f0);
+            padding: 15px 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            box-sizing: border-box;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            background-color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #3a0ca3;
+            font-weight: bold;
+            font-size: 16px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .user-email {
+            font-weight: 500;
+            color: white;
+            background-color: rgba(255, 255, 255, 0.15);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        #sign-out {
+            background-color: rgba(247, 37, 133, 0.9);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        #sign-out:hover {
+            background-color: #f72585;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .content-area {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1;
+            padding: 20px;
+        }
+        
+        .form-container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            width: 500px;
+            max-width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .form-container:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(90deg, #3a0ca3, #4361ee, #4cc9f0, #f72585);
+        }
+        
+        .form-title {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: #444;
+            font-size: 16px;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 14px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #4361ee;
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        .submit-btn {
+            padding: 14px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-size: 16px;
+            background-color: #4361ee;
+            color: white;
+            box-shadow: 0 4px 10px rgba(67, 97, 238, 0.3);
+            flex: 1;
+        }
+        
+        .cancel-btn {
+            padding: 14px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-size: 16px;
+            background-color: #e5e5e5;
+            color: #333;
+            flex: 1;
+        }
+        
+        .submit-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(67, 97, 238, 0.4);
+        }
+        
+        .cancel-btn:hover {
+            transform: translateY(-3px);
+            background-color: #d5d5d5;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <div class="user-section">
+            <div class="user-avatar">
+                {% if user_token.email %}
+                {{ user_token.email[0] | upper }}
+                {% else %}
+                U
+                {% endif %}
+            </div>
+            <p class="user-email">{{ user_token.email }}</p>
+        </div>
+        
+        <button id="sign-out">
+            <i class="fas fa-sign-out-alt"></i> Sign out
+        </button>
+    </div>
+    
+    <div class="content-area">
+        <div class="form-container">
+            <h2 class="form-title">Create Task Board</h2>
+            
+            <form action="/create-board" method="post">
+                <div class="form-group">
+                    <label for="title">Board Title</label>
+                    <input type="text" id="title" name="title" required placeholder="Enter a title for your board">
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Board Description (optional)</label>
+                    <textarea id="description" name="description" placeholder="Describe the purpose of this board"></textarea>
+                </div>
+                
+                <div class="form-actions">
+                    <a href="/" class="cancel-btn">Cancel</a>
+                    <button type="submit" class="submit-btn">Create Board</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const signOutButton = document.getElementById('sign-out');
+            if (signOutButton) {
+                signOutButton.addEventListener('click', function() {
+                    if (typeof signOut === 'function') {
+                        signOut();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
