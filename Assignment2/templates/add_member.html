@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Create Task Board</title>
+    <title>Add Member - {{ board.title }}</title>
     <script type="module" src="{{ url_for('static', path='/firebase-login.js') }}"></script>
     <style>
         body {
@@ -103,118 +103,173 @@
         
         .content-area {
             display: flex;
-            justify-content: center;
-            align-items: center;
+            flex-direction: column;
             flex-grow: 1;
             padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .page-title {
+            font-size: 28px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .board-info {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .board-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
         }
         
         .form-container {
             background-color: white;
-            padding: 40px;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-            width: 500px;
-            max-width: 100%;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .form-container:before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 6px;
-            background: linear-gradient(90deg, #3a0ca3, #4361ee, #4cc9f0, #f72585);
-        }
-        
-        .form-title {
-            color: #333;
-            text-align: center;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             margin-bottom: 30px;
-            font-size: 28px;
-            font-weight: 600;
         }
         
         .form-group {
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
         
         .form-group label {
             display: block;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             font-weight: 500;
             color: #444;
-            font-size: 16px;
         }
         
-        .form-group input,
-        .form-group textarea {
+        .form-group input {
             width: 100%;
-            padding: 14px 15px;
+            padding: 12px 15px;
             border: 1px solid #ddd;
-            border-radius: 8px;
+            border-radius: 6px;
             box-sizing: border-box;
             font-size: 15px;
             transition: all 0.3s ease;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
-        .form-group textarea {
-            min-height: 120px;
-            resize: vertical;
-        }
-        
-        .form-group input:focus,
-        .form-group textarea:focus {
+        .form-group input:focus {
             outline: none;
             border-color: #4361ee;
             box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
         }
         
-        .form-actions {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
-        }
-        
-        .submit-btn {
-            padding: 14px 30px;
+        .btn {
+            padding: 12px 20px;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             cursor: pointer;
             font-weight: 500;
             transition: all 0.3s ease;
-            font-size: 16px;
+            font-size: 15px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
             background-color: #4361ee;
             color: white;
             box-shadow: 0 4px 10px rgba(67, 97, 238, 0.3);
-            flex: 1;
         }
         
-        .cancel-btn {
-            padding: 14px 30px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            font-size: 16px;
+        .btn-secondary {
             background-color: #e5e5e5;
             color: #333;
-            flex: 1;
         }
         
-        .submit-btn:hover {
+        .btn-primary:hover {
             transform: translateY(-3px);
             box-shadow: 0 6px 15px rgba(67, 97, 238, 0.4);
         }
         
-        .cancel-btn:hover {
+        .btn-secondary:hover {
             transform: translateY(-3px);
             background-color: #d5d5d5;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .message {
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .error-message {
+            background-color: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #c62828;
+        }
+        
+        .success-message {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border-left: 4px solid #2e7d32;
+        }
+        
+        .members-list {
+            margin-top: 30px;
+        }
+        
+        .members-list h3 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .member-item {
+            padding: 10px 15px;
+            background-color: #f9f9f9;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .member-email {
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .member-role {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background-color: #e3f2fd;
+            color: #1565c0;
+        }
+        
+        .member-role.creator {
+            background-color: #fce4ec;
+            color: #c2185b;
         }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -236,6 +291,9 @@
             <a href="/" class="nav-link">
                 <i class="fas fa-home"></i> Home
             </a>
+            <a href="/board/{{ board.id }}" class="nav-link">
+                <i class="fas fa-clipboard-list"></i> Back to Board
+            </a>
         </div>
         
         <button id="sign-out">
@@ -244,25 +302,64 @@
     </div>
     
     <div class="content-area">
+        <div class="page-header">
+            <h1 class="page-title">Add Member to Board</h1>
+        </div>
+        
+        <div class="board-info">
+            <h2 class="board-name">Board: {{ board.title }}</h2>
+        </div>
+        
+        {% if error_message %}
+        <div class="message error-message">
+            <i class="fas fa-exclamation-circle"></i> {{ error_message }}
+        </div>
+        {% endif %}
+        
+        {% if success_message %}
+        <div class="message success-message">
+            <i class="fas fa-check-circle"></i> {{ success_message }}
+        </div>
+        {% endif %}
+        
         <div class="form-container">
-            <h2 class="form-title">Create Task Board</h2>
-            
-            <form action="/create-board" method="post">
+            <form method="post" action="/board/{{ board.id }}/add-member">
                 <div class="form-group">
-                    <label for="title">Board Title</label>
-                    <input type="text" id="title" name="title" required placeholder="Enter a title for your board">
-                </div>
-                
-                <div class="form-group">
-                    <label for="description">Board Description (optional)</label>
-                    <textarea id="description" name="description" placeholder="Describe the purpose of this board"></textarea>
+                    <label for="email">User Email:</label>
+                    <input type="email" id="email" name="email" required placeholder="Enter the email of the user you want to add">
                 </div>
                 
                 <div class="form-actions">
-                    <a href="/" class="cancel-btn">Cancel</a>
-                    <button type="submit" class="submit-btn">Create Board</button>
+                    <a href="/board/{{ board.id }}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-user-plus"></i> Add Member
+                    </button>
                 </div>
             </form>
+        </div>
+        
+        <div class="members-list">
+            <h3>Current Members</h3>
+            
+            {% for member in members_info %}
+            <div class="member-item">
+                <span class="member-email">
+                    {{ member.email }}
+                    {% if member.id == user_token.user_id %}
+                    (You)
+                    {% endif %}
+                </span>
+                <span class="member-role {% if member.is_creator %}creator{% endif %}">
+                    {% if member.is_creator %}
+                    Creator
+                    {% else %}
+                    Member
+                    {% endif %}
+                </span>
+            </div>
+            {% endfor %}
         </div>
     </div>
     
