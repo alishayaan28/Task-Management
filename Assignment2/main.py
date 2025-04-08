@@ -26,23 +26,27 @@ db = firestore.Client()
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     id_token = request.cookies.get("token")
-    error_message = "No error here"
+    error_message = None
     user_token = None
+    user_boards = []
 
     if id_token:
         try:
             user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
-            error_message = None 
+            if user_token:
+                user_id = user_token['user_id']
+                user_boards = await get_user_task_boards(user_id)
+                
         except ValueError as err:
-           
             print(str(err))
             user_token = None 
-            error_message = str(err) 
+            error_message = str(err)
 
     return templates.TemplateResponse('main.html', {
         'request': request,
         'user_token': user_token,
-        'error_message': error_message
+        'error_message': error_message,
+        'user_boards': user_boards
     })
 
 # Route for logout
@@ -185,29 +189,59 @@ async def create_board_submit(request: Request, title: str = Form(...), descript
         print(str(err))
         return RedirectResponse(url="/")
 
-# Update main route to list user's boards
-@app.get("/", response_class=HTMLResponse)
-async def root(request: Request):
+# Routes for task board
+@app.get("/board/{board_id}", response_class=HTMLResponse)
+
+async def view_board(request: Request, board_id: str):
+
     id_token = request.cookies.get("token")
+
     error_message = None
+
     user_token = None
-    user_boards = []
 
-    if id_token:
-        try:
-            user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
-            if user_token:
-                user_id = user_token['user_id']
-                user_boards = await get_user_task_boards(user_id)
-                
-        except ValueError as err:
-            print(str(err))
-            user_token = None 
-            error_message = str(err)
+    board = None
 
-    return templates.TemplateResponse('main.html', {
+    tasks = []
+
+    if not id_token:
+
+        return RedirectResponse(url="/")
+
+    try:
+
+        user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
+
+        user_id = user_token['user_id']
+        board = await get_task_board(board_id)
+
+        if not board:
+
+            return RedirectResponse(url="/")
+
+
+        if user_id not in board.get('members', []):
+
+            return RedirectResponse(url="/")
+
+        tasks = await get_board_tasks(board_id)
+
+    except ValueError as err:
+
+        print(str(err))
+
+        return RedirectResponse(url="/")
+
+    return templates.TemplateResponse('board.html', {
+
         'request': request,
+
         'user_token': user_token,
+
         'error_message': error_message,
-        'user_boards': user_boards
+
+        'board': board,
+
+        'tasks': tasks
+
     })
