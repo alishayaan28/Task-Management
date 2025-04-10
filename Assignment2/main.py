@@ -233,52 +233,91 @@ async def create_board_submit(request: Request, title: str = Form(...), descript
 async def view_board(request: Request, board_id: str):
 
     id_token = request.cookies.get("token")
+
     error_message = None
+
     user_token = None
+
     board = None
+
     tasks = []
 
     if not id_token:
+
         return RedirectResponse(url="/")
 
     try:
+
         user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
+
         user_id = user_token['user_id']
+
         email = user_token.get('email', '')
+
         temp_user_id = f"temp_{email.replace('@', '_at_').replace('.', '_dot_')}"
-        
+
         board = await get_task_board(board_id)
 
         if not board:
+
             return RedirectResponse(url="/")
 
-        # Check if either user's real ID or temp ID is in the members list
         if user_id not in board.get('members', []) and temp_user_id not in board.get('members', []):
+
             return RedirectResponse(url="/")
 
-        # If user is accessing with temp ID, update board to use real ID
         if temp_user_id in board.get('members', []) and user_id not in board.get('members', []):
+
             board_ref = db.collection('task_boards').document(board_id)
+
             members = board.get('members', [])
+
             members.remove(temp_user_id)
+
             members.append(user_id)
+
             board_ref.update({'members': members})
-            # Update the board data for the template
+
             board['members'] = members
 
         tasks = await get_board_tasks(board_id)
-    
+
+        for task in tasks:
+
+            if task.get('status') == 'completed' and task.get('completed_at'):
+
+                completed_at = task['completed_at']
+
+                if hasattr(completed_at, 'seconds'):
+
+                    import datetime
+
+                    task['completed_at_formatted'] = datetime.datetime.fromtimestamp(
+
+                        completed_at.seconds
+
+                    ).strftime('%Y-%m-%d %H:%M')
+
+                else:
+
+                    task['completed_at_formatted'] = completed_at.strftime('%Y-%m-%d %H:%M')
+
     except ValueError as err:
 
         print(str(err))
+
         return RedirectResponse(url="/")
 
     return templates.TemplateResponse('board.html', {
 
         'request': request,
+
         'user_token': user_token,
+
         'error_message': error_message,
+
         'board': board,
+
         'tasks': tasks
 
     })
@@ -728,8 +767,9 @@ async def complete_task(request: Request, board_id: str, task_id: str):
     if not id_token:
 
         return RedirectResponse(url="/")
-
+    
     try:
+
         user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
         user_id = user_token['user_id']
         board = await get_task_board(board_id)
@@ -748,6 +788,7 @@ async def complete_task(request: Request, board_id: str, task_id: str):
 
                 return RedirectResponse(url="/")
 
+    
         task_ref = db.collection('task_boards').document(board_id).collection('tasks').document(task_id)
 
         task = task_ref.get()
@@ -756,12 +797,13 @@ async def complete_task(request: Request, board_id: str, task_id: str):
 
             return RedirectResponse(url=f"/board/{board_id}")
 
-        import datetime
-
         task_ref.update({
 
             'status': 'completed',
-            'completed_at': firestore.SERVER_TIMESTAMP
+
+            'completed_at': firestore.SERVER_TIMESTAMP,
+
+            'completed_by': user_id
 
         })
 
@@ -772,3 +814,8 @@ async def complete_task(request: Request, board_id: str, task_id: str):
         print(str(err))
 
         return RedirectResponse(url="/")
+    
+    
+#Check user is in the board creator
+async def is_board_creator(board, user_id):
+    return board.get('creator_id') == user_id

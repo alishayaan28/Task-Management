@@ -213,7 +213,6 @@
             font-weight: 500;
         }
         
-        /* Dashboard styles */
         .dashboard-container {
             width: 100%;
             max-width: 1200px;
@@ -332,6 +331,38 @@
             color: #666;
             margin-bottom: 30px;
         }
+        
+        .board-card.creator {
+            border-left: 4px solid #4361ee;
+        }
+        
+        .board-card.member {
+            border-left: 4px solid #7209b7;
+        }
+        
+        .board-role-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+        
+        .creator-badge {
+            background-color: #e3f2fd;
+            color: #0d47a1;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .member-badge {
+            background-color: #f3e5f5;
+            color: #6a1b9a;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
@@ -365,7 +396,14 @@
             {% if user_boards %}
             <div class="boards-grid">
                 {% for board in user_boards %}
-                <div class="board-card">
+                <div class="board-card {% if board.creator_id == user_token.user_id %}creator{% else %}member{% endif %}">
+                    <div class="board-role-badge">
+                        {% if board.creator_id == user_token.user_id %}
+                        <span class="creator-badge">Owner</span>
+                        {% else %}
+                        <span class="member-badge">Member</span>
+                        {% endif %}
+                    </div>
                     <h3 class="board-title">{{ board.title }}</h3>
                     <p class="board-description">{{ board.description }}</p>
                     <div class="board-meta">

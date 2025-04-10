@@ -239,6 +239,13 @@
             line-height: 1.5;
         }
         
+        .task-dates {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
         .task-due-date {
             background-color: #e3f2fd;
             color: #0d47a1;
@@ -249,6 +256,18 @@
             align-items: center;
             gap: 5px;
             margin-bottom: 10px;
+        }
+        
+        .task-completed-date {
+            background-color: #e8f5e9;
+            color: #1b5e20;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            max-width: fit-content;
         }
         
         .task-meta {
@@ -405,11 +424,22 @@
                     <p class="task-description">{{ task.description }}</p>
                     {% endif %}
                     
-                    {% if task.due_date %}
-                    <div class="task-due-date">
-                        <i class="fas fa-calendar-alt"></i> Due: {{ task.due_date }}
+                    <div class="task-dates">
+                        {% if task.due_date %}
+                        <div class="task-due-date">
+                            <i class="fas fa-calendar-alt"></i> Due: {{ task.due_date }}
+                        </div>
+                        {% endif %}
+                        
+                        {% if task.status == 'completed' and task.completed_at %}
+                        <div class="task-completed-date">
+                            <i class="fas fa-check-circle"></i> Completed: 
+                            {% if task.completed_at_formatted %}
+                                {{ task.completed_at_formatted }}
+                            {% endif %}
+                        </div>
+                        {% endif %}
                     </div>
-                    {% endif %}
                     
                     <div class="task-meta">
                         <div class="task-info">
@@ -433,9 +463,11 @@
                                 <i class="fas fa-edit"></i> Edit
                             </a>
                             {% if task.status != 'completed' %}
-                            <a href="/board/{{ board.id }}/task/{{ task.id }}/complete" class="task-action-btn" style="background-color: #4361ee; color: white;">
-                                <i class="fas fa-check"></i> Complete
-                            </a>
+                            <form method="post" action="/board/{{ board.id }}/task/{{ task.id }}/complete" style="display: inline;">
+                                <button type="submit" class="task-action-btn" style="background-color: #4361ee; color: white;">
+                                    <i class="fas fa-check"></i> Complete
+                                </button>
+                            </form>
                             {% endif %}
                         </div>
                     </div>
