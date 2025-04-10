@@ -133,7 +133,14 @@ async def get_user_task_boards(user_id: str):
     return boards
 
 # Task functions
-async def create_task(board_id: str, title: str, description: str, creator_id: str, assigned_users: list = None):
+async def create_task(
+    board_id: str, 
+    title: str, 
+    description: str, 
+    creator_id: str, 
+    assigned_users: list = None,
+    due_date: str = None
+):
     if assigned_users is None:
         assigned_users = []
         
@@ -144,7 +151,9 @@ async def create_task(board_id: str, title: str, description: str, creator_id: s
         'creator_id': creator_id,
         'assigned_users': assigned_users,
         'status': 'pending',
-        'created_at': firestore.SERVER_TIMESTAMP
+        'created_at': firestore.SERVER_TIMESTAMP,
+        'due_date': due_date,
+        'completed_at': None
     }
     task_ref.set(task_data)
     return {"id": task_ref.id, **task_data}
@@ -577,9 +586,7 @@ async def ensure_user(request: Request):
                 user_data = {
 
                     'email': email,
-
                     'created_at': firestore.SERVER_TIMESTAMP
-
                 }
 
                 user_ref.set(user_data)
@@ -595,3 +602,173 @@ async def ensure_user(request: Request):
         print(f"Error ensuring user: {str(e)}")
 
         return {"status": "error", "message": str(e)}
+    
+
+    
+# Create Task
+@app.get("/board/{board_id}/create-task", response_class=HTMLResponse)
+async def create_task_page(request: Request, board_id: str):
+    id_token = request.cookies.get("token")
+    error_message = None
+    user_token = None
+    board = None
+
+    if not id_token:
+        return RedirectResponse(url="/")
+    
+    try:
+        user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
+        user_id = user_token['user_id']
+        
+        board = await get_task_board(board_id)
+        
+        if not board:
+            return RedirectResponse(url="/")
+        
+        if user_id not in board.get('members', []):
+            email = user_token.get('email', '')
+            temp_user_id = f"temp_{email.replace('@', '_at_').replace('.', '_dot_')}"
+            if temp_user_id not in board.get('members', []):
+                return RedirectResponse(url="/")
+        
+        board_members = []
+        member_emails = board.get('member_emails', {})
+        
+        for member_id in board.get('members', []):
+            if member_id in member_emails:
+                board_members.append({
+                    'id': member_id,
+                    'email': member_emails[member_id]
+                })
+            elif member_id == user_id:
+                board_members.append({
+                    'id': member_id,
+                    'email': user_token.get('email', 'You')
+                })
+            elif member_id.startswith('temp_'):
+                email = member_id.replace('temp_', '').replace('_at_', '@').replace('_dot_', '.')
+                board_members.append({
+                    'id': member_id,
+                    'email': email
+                })
+            else:
+                board_members.append({
+                    'id': member_id,
+                    'email': f"User {member_id[:6]}..."
+                })
+        
+    except ValueError as err:
+        print(str(err))
+        return RedirectResponse(url="/")
+
+    return templates.TemplateResponse('create_task.html', {
+        'request': request,
+        'user_token': user_token,
+        'error_message': error_message,
+        'board': board,
+        'board_members': board_members
+    })
+
+@app.post("/board/{board_id}/create-task")
+async def create_task_submit(
+    request: Request, 
+    board_id: str, 
+    title: str = Form(...), 
+    description: str = Form(""),
+    due_date: str = Form(None),
+    assigned_to: str = Form(None)
+):
+    id_token = request.cookies.get("token")
+    
+    if not id_token:
+        return RedirectResponse(url="/")
+    
+    try:
+        user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
+        user_id = user_token['user_id']
+        
+        board = await get_task_board(board_id)
+        
+        if not board:
+            return RedirectResponse(url="/")
+        
+        if user_id not in board.get('members', []):
+            email = user_token.get('email', '')
+            temp_user_id = f"temp_{email.replace('@', '_at_').replace('.', '_dot_')}"
+            if temp_user_id not in board.get('members', []):
+                return RedirectResponse(url="/")
+        
+        assigned_users = []
+        if assigned_to and assigned_to != "none":
+            assigned_users = [assigned_to]
+        
+        task = await create_task(
+            board_id=board_id,
+            title=title,
+            description=description,
+            creator_id=user_id,
+            assigned_users=assigned_users,
+            due_date=due_date
+        )
+        
+        return RedirectResponse(url=f"/board/{board_id}", status_code=303)
+        
+    except ValueError as err:
+        print(str(err))
+        return RedirectResponse(url="/")
+    
+
+# Routes for task marking
+@app.post("/board/{board_id}/task/{task_id}/complete")
+
+async def complete_task(request: Request, board_id: str, task_id: str):
+
+    id_token = request.cookies.get("token")
+
+    if not id_token:
+
+        return RedirectResponse(url="/")
+
+    try:
+        user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
+        user_id = user_token['user_id']
+        board = await get_task_board(board_id)
+
+        if not board:
+
+            return RedirectResponse(url="/")
+
+        if user_id not in board.get('members', []):
+
+            email = user_token.get('email', '')
+
+            temp_user_id = f"temp_{email.replace('@', '_at_').replace('.', '_dot_')}"
+
+            if temp_user_id not in board.get('members', []):
+
+                return RedirectResponse(url="/")
+
+        task_ref = db.collection('task_boards').document(board_id).collection('tasks').document(task_id)
+
+        task = task_ref.get()
+
+        if not task.exists:
+
+            return RedirectResponse(url=f"/board/{board_id}")
+
+        import datetime
+
+        task_ref.update({
+
+            'status': 'completed',
+            'completed_at': firestore.SERVER_TIMESTAMP
+
+        })
+
+        return RedirectResponse(url=f"/board/{board_id}", status_code=303)
+
+    except ValueError as err:
+
+        print(str(err))
+
+        return RedirectResponse(url="/")
