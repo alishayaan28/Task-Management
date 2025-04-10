@@ -277,13 +277,19 @@ async def view_board(request: Request, board_id: str):
 
 # Routes for Add Member
 @app.get("/board/{board_id}/add-member", response_class=HTMLResponse)
+
 async def add_member_page(request: Request, board_id: str):
 
     id_token = request.cookies.get("token")
+
     error_message = None
+
     success_message = None
+
     user_token = None
+
     board = None
+
     members_info = []
 
     if not id_token:
@@ -306,44 +312,96 @@ async def add_member_page(request: Request, board_id: str):
 
             return RedirectResponse(url=f"/board/{board_id}")
 
-                
+        
+
+        board_ref = db.collection('task_boards').document(board_id)
+
+        board_data = board_ref.get().to_dict()
+
+        member_emails = board_data.get('member_emails', {})
+
+        
 
         for member_id in board.get('members', []):
+
+            if member_id in member_emails:
+
+                members_info.append({
+
+                    'id': member_id,
+
+                    'email': member_emails[member_id],
+
+                    'is_creator': member_id == board.get('creator_id', '')
+
+                })
+
+                continue
+
+                
+
+            if member_id == user_id:
+
+                members_info.append({
+
+                    'id': member_id,
+
+                    'email': user_token.get('email', 'Your account'),
+
+                    'is_creator': member_id == board.get('creator_id', '')
+
+                })
+
+                
+
+                if 'email' in user_token:
+
+                    member_emails[member_id] = user_token['email']
+
+                    board_ref.update({'member_emails': member_emails})
+
+                continue
+
+                
 
             if member_id.startswith('temp_'):
 
                 email = member_id.replace('temp_', '').replace('_at_', '@').replace('_dot_', '.')
 
                 members_info.append({
+
                     'id': member_id,
+
                     'email': email,
+
                     'is_creator': member_id == board.get('creator_id', '')
 
                 })
 
-            else:
-                user_ref = db.collection('users').document(member_id)
-                user_doc = user_ref.get()
+                
 
-                if user_doc.exists:
-                    user_data = user_doc.to_dict()
-                    members_info.append({
-                        'id': member_id,
-                        'email': user_data.get('email', 'Unknown email'),
-                        'is_creator': member_id == board.get('creator_id', '')
-                    })
+                member_emails[member_id] = email
 
-                else:
-                    members_info.append({
-                        'id': member_id,
-                        'email': 'Unknown user',
-                        'is_creator': member_id == board.get('creator_id', '')
+                board_ref.update({'member_emails': member_emails})
 
-                    })
+                continue
+
+            
+
+            members_info.append({
+
+                'id': member_id,
+
+                'email': f"User {member_id[:6]}...",
+
+                'is_creator': member_id == board.get('creator_id', '')
+
+            })
 
     except ValueError as err:
 
         print(str(err))
+
         return RedirectResponse(url="/")
 
     return templates.TemplateResponse('add_member.html', {
@@ -357,10 +415,8 @@ async def add_member_page(request: Request, board_id: str):
 
     })
 
-
 @app.post("/board/{board_id}/add-member")
 async def add_member_submit(request: Request, board_id: str, email: str = Form(...)):
-
     id_token = request.cookies.get("token")
 
     if not id_token:
@@ -380,6 +436,10 @@ async def add_member_submit(request: Request, board_id: str, email: str = Form(.
         users_ref = db.collection('users').where('email', '==', email)
         users = [doc for doc in users_ref.stream()]
 
+        board_ref = db.collection('task_boards').document(board_id)
+        board_data = board_ref.get().to_dict()
+        member_emails = board_data.get('member_emails', {})
+
         if not users:
             temp_user_id = f"temp_{email.replace('@', '_at_').replace('.', '_dot_')}"
             user_data = {
@@ -389,33 +449,104 @@ async def add_member_submit(request: Request, board_id: str, email: str = Form(.
             }
             db.collection('users').document(temp_user_id).set(user_data)
             member_id = temp_user_id
+            
+            # Store email directly in the board
+            member_emails[member_id] = email
+            
             print(f"Created temporary user record for {email} with ID {temp_user_id}")
         else:
             member_id = users[0].id
+            user_email = users[0].to_dict().get('email')
             
-        board_data = board
+            # Store email directly in the board
+            member_emails[member_id] = user_email
 
-        if member_id in board_data.get('members', []):
+        if member_id in board.get('members', []):
+            # Get members info for error message
+            members_info = []
+            for mid in board.get('members', []):
+                if mid in member_emails:
+                    members_info.append({
+                        'id': mid,
+                        'email': member_emails[mid],
+                        'is_creator': mid == board.get('creator_id', '')
+                    })
+                elif mid == user_id:
+                    members_info.append({
+                        'id': mid,
+                        'email': user_token.get('email', 'Your account'),
+                        'is_creator': mid == board.get('creator_id', '')
+                    })
+                elif mid.startswith('temp_'):
+                    temp_email = mid.replace('temp_', '').replace('_at_', '@').replace('_dot_', '.')
+                    members_info.append({
+                        'id': mid,
+                        'email': temp_email,
+                        'is_creator': mid == board.get('creator_id', '')
+                    })
+                else:
+                    members_info.append({
+                        'id': mid,
+                        'email': f"User {mid[:6]}...",
+                        'is_creator': mid == board.get('creator_id', '')
+                    })
+            
             return templates.TemplateResponse('add_member.html', {
                 'request': request,
                 'user_token': user_token,
                 'error_message': "User is already a member of this board.",
                 'success_message': None,
-                'board': board
+                'board': board,
+                'members_info': members_info
             })
 
-        board_ref = db.collection('task_boards').document(board_id)
-        members = board_data.get('members', [])
+        members = board.get('members', [])
         members.append(member_id)
-        board_ref.update({'members': members})
+        
+        # Update the board with new member and emails
+        board_ref.update({
+            'members': members,
+            'member_emails': member_emails
+        })
+        
         updated_board = await get_task_board(board_id)
+        
+        # Get members info for the success response
+        members_info = []
+        for mid in updated_board.get('members', []):
+            if mid in member_emails:
+                members_info.append({
+                    'id': mid,
+                    'email': member_emails[mid],
+                    'is_creator': mid == updated_board.get('creator_id', '')
+                })
+            elif mid == user_id:
+                members_info.append({
+                    'id': mid,
+                    'email': user_token.get('email', 'Your account'),
+                    'is_creator': mid == updated_board.get('creator_id', '')
+                })
+            elif mid.startswith('temp_'):
+                temp_email = mid.replace('temp_', '').replace('_at_', '@').replace('_dot_', '.')
+                members_info.append({
+                    'id': mid,
+                    'email': temp_email,
+                    'is_creator': mid == updated_board.get('creator_id', '')
+                })
+            else:
+                members_info.append({
+                    'id': mid,
+                    'email': f"User {mid[:6]}...",
+                    'is_creator': mid == updated_board.get('creator_id', '')
+                })
 
         return templates.TemplateResponse('add_member.html', {
             'request': request,
             'user_token': user_token,
             'error_message': None,
             'success_message': f"User {email} has been added to the board.",
-            'board': updated_board
+            'board': updated_board,
+            'members_info': members_info
         })
 
     except ValueError as err:
