@@ -708,58 +708,88 @@ async def create_task_page(request: Request, board_id: str):
         'board_members': board_members
     })
 
+
 @app.post("/board/{board_id}/create-task")
 async def create_task_submit(
+
     request: Request, 
     board_id: str, 
     title: str = Form(...), 
     description: str = Form(""),
     due_date: str = Form(None),
     assigned_to: str = Form(None)
+
 ):
+
     id_token = request.cookies.get("token")
-    
+
     if not id_token:
+
         return RedirectResponse(url="/")
-    
+
     try:
+
         user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
+
         user_id = user_token['user_id']
-        
+
         board = await get_task_board(board_id)
-        
+
         if not board:
+
             return RedirectResponse(url="/")
-        
+
         if user_id not in board.get('members', []):
+
             email = user_token.get('email', '')
+
             temp_user_id = f"temp_{email.replace('@', '_at_').replace('.', '_dot_')}"
+
             if temp_user_id not in board.get('members', []):
+
                 return RedirectResponse(url="/")
-        
+
+        existing_tasks = await get_board_tasks(board_id)
+
+        for task in existing_tasks:
+
+            if task['title'].lower() == title.lower():
+
+                return templates.TemplateResponse('create_task.html', {
+                    'request': request,
+                    'user_token': user_token,
+                    'error_message': "A task with this name already exists on this board.",
+                    'board': board,
+                    'board_members': await get_board_members(board)
+
+                })
+
         assigned_users = []
+
         if assigned_to and assigned_to != "none":
             assigned_users = [assigned_to]
-        
+
         task = await create_task(
+
             board_id=board_id,
             title=title,
             description=description,
             creator_id=user_id,
             assigned_users=assigned_users,
             due_date=due_date
+
         )
-        
-        return RedirectResponse(url=f"/board/{board_id}", status_code=303)
-        
+
+        return RedirectResponse(url=f"/board/{board_id}", status_code=303)        
+
     except ValueError as err:
+
         print(str(err))
         return RedirectResponse(url="/")
     
 
 # Routes for task marking
 @app.post("/board/{board_id}/task/{task_id}/complete")
-
 async def complete_task(request: Request, board_id: str, task_id: str):
 
     id_token = request.cookies.get("token")
@@ -819,3 +849,315 @@ async def complete_task(request: Request, board_id: str, task_id: str):
 #Check user is in the board creator
 async def is_board_creator(board, user_id):
     return board.get('creator_id') == user_id
+
+
+@app.get("/board/{board_id}/edit", response_class=HTMLResponse)
+
+async def edit_board_page(request: Request, board_id: str):
+
+    id_token = request.cookies.get("token")
+    error_message = None
+    user_token = None
+    board = None
+
+    if not id_token:
+
+        return RedirectResponse(url="/")
+
+    try:
+
+        user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
+        user_id = user_token['user_id']
+        board = await get_task_board(board_id)
+
+        if not board:
+
+            return RedirectResponse(url="/")
+
+        if board.get('creator_id') != user_id:
+
+            return RedirectResponse(url=f"/board/{board_id}")
+
+
+    except ValueError as err:
+
+        print(str(err))
+
+        return RedirectResponse(url="/")
+
+    return templates.TemplateResponse('edit_board.html', {
+
+        'request': request,
+        'user_token': user_token,
+        'error_message': error_message,
+        'board': board
+
+    })
+
+
+@app.post("/board/{board_id}/edit")
+async def edit_board_submit(
+    request: Request, 
+    board_id: str, 
+    title: str = Form(...), 
+    description: str = Form("")
+
+):
+
+    id_token = request.cookies.get("token")
+
+    if not id_token:
+
+        return RedirectResponse(url="/")
+
+    try:
+
+        user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
+        user_id = user_token['user_id']
+        board = await get_task_board(board_id)
+
+        if not board:
+
+            return RedirectResponse(url="/")
+
+        if board.get('creator_id') != user_id:
+
+            return RedirectResponse(url=f"/board/{board_id}")
+
+        board_ref = db.collection('task_boards').document(board_id)
+
+        board_ref.update({
+            'title': title,
+            'description': description
+        })
+
+        return RedirectResponse(url=f"/board/{board_id}", status_code=303)
+
+    except ValueError as err:
+
+        print(str(err))
+        return RedirectResponse(url="/")
+    
+
+
+@app.get("/board/{board_id}/members", response_class=HTMLResponse)
+async def manage_members_page(request: Request, board_id: str):
+    id_token = request.cookies.get("token")
+    error_message = None
+    success_message = None
+    user_token = None
+    board = None
+    members_info = []
+
+    if not id_token:
+        return RedirectResponse(url="/")
+    
+    try:
+        user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
+        user_id = user_token['user_id']
+        
+        board = await get_task_board(board_id)
+        
+        if not board:
+            return RedirectResponse(url="/")
+        
+        if board.get('creator_id') != user_id:
+            return RedirectResponse(url=f"/board/{board_id}")
+        
+        for member_id in board.get('members', []):
+            if member_id.startswith('temp_'):
+                email = member_id.replace('temp_', '').replace('_at_', '@').replace('_dot_', '.')
+                members_info.append({
+                    'id': member_id,
+                    'email': email,
+                    'is_creator': member_id == board.get('creator_id', '')
+                })
+            else:
+                user_ref = db.collection('users').document(member_id)
+                user_doc = user_ref.get()
+                if user_doc.exists:
+                    user_data = user_doc.to_dict()
+                    members_info.append({
+                        'id': member_id,
+                        'email': user_data.get('email', 'Unknown email'),
+                        'is_creator': member_id == board.get('creator_id', '')
+                    })
+                else:
+                    members_info.append({
+                        'id': member_id,
+                        'email': 'Unknown user',
+                        'is_creator': member_id == board.get('creator_id', '')
+                    })
+        
+    except ValueError as err:
+        print(str(err))
+        return RedirectResponse(url="/")
+
+    return templates.TemplateResponse('manage_members.html', {
+        'request': request,
+        'user_token': user_token,
+        'error_message': error_message,
+        'success_message': success_message,
+        'board': board,
+        'members_info': members_info
+    })
+
+@app.post("/board/{board_id}/remove-member/{member_id}")
+async def remove_member(request: Request, board_id: str, member_id: str):
+    id_token = request.cookies.get("token")
+    
+    if not id_token:
+        return RedirectResponse(url="/")
+    
+    try:
+        user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
+        user_id = user_token['user_id']
+        
+        board = await get_task_board(board_id)
+        
+        if not board:
+            return RedirectResponse(url="/")
+        
+        if board.get('creator_id') != user_id:
+            return RedirectResponse(url=f"/board/{board_id}")
+        
+        if member_id == board.get('creator_id'):
+            return RedirectResponse(url=f"/board/{board_id}/members")
+        
+        board_ref = db.collection('task_boards').document(board_id)
+        members = board.get('members', [])
+        if member_id in members:
+            members.remove(member_id)
+            board_ref.update({'members': members})
+        
+        return RedirectResponse(url=f"/board/{board_id}/members", status_code=303)
+        
+    except ValueError as err:
+        print(str(err))
+        return RedirectResponse(url="/")
+    
+
+@app.get("/board/{board_id}/delete", response_class=HTMLResponse)
+async def delete_board_page(request: Request, board_id: str):
+    id_token = request.cookies.get("token")
+    error_message = None
+    user_token = None
+    board = None
+    has_tasks = False
+    has_other_members = False
+
+    if not id_token:
+        return RedirectResponse(url="/")
+    
+    try:
+        user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
+        user_id = user_token['user_id']
+        
+        board = await get_task_board(board_id)
+        
+        if not board:
+            return RedirectResponse(url="/")
+        
+        if board.get('creator_id') != user_id:
+            return RedirectResponse(url=f"/board/{board_id}")
+        
+        tasks = await get_board_tasks(board_id)
+        has_tasks = len(tasks) > 0
+        
+        members = board.get('members', [])
+        has_other_members = len(members) > 1
+        
+    except ValueError as err:
+        print(str(err))
+        return RedirectResponse(url="/")
+
+    return templates.TemplateResponse('delete_board.html', {
+        'request': request,
+        'user_token': user_token,
+        'error_message': error_message,
+        'board': board,
+        'has_tasks': has_tasks,
+        'has_other_members': has_other_members
+    })
+
+@app.post("/board/{board_id}/delete")
+async def delete_board_submit(request: Request, board_id: str, force: bool = Form(False)):
+    id_token = request.cookies.get("token")
+    
+    if not id_token:
+        return RedirectResponse(url="/")
+    
+    try:
+        user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
+        user_id = user_token['user_id']
+        
+        board = await get_task_board(board_id)
+        
+        if not board:
+            return RedirectResponse(url="/")
+        
+        if board.get('creator_id') != user_id:
+            return RedirectResponse(url=f"/board/{board_id}")
+        
+        tasks = await get_board_tasks(board_id)
+        has_tasks = len(tasks) > 0
+        
+        members = board.get('members', [])
+        has_other_members = len(members) > 1
+        
+        if force or (not has_tasks and not has_other_members):
+            if has_tasks:
+                tasks_ref = db.collection('task_boards').document(board_id).collection('tasks')
+                for task in tasks:
+                    tasks_ref.document(task['id']).delete()
+            
+            db.collection('task_boards').document(board_id).delete()
+            return RedirectResponse(url="/", status_code=303)
+        else:
+            return templates.TemplateResponse('delete_board.html', {
+                'request': request,
+                'user_token': user_token,
+                'error_message': "Cannot delete board with tasks or other members without confirmation.",
+                'board': board,
+                'has_tasks': has_tasks,
+                'has_other_members': has_other_members
+            })
+        
+    except ValueError as err:
+        print(str(err))
+        return RedirectResponse(url="/")
+
+
+async def get_board_members(board):
+    """Get member information for a board"""
+    board_members = []
+    member_emails = board.get('member_emails', {})
+    
+    for member_id in board.get('members', []):
+        if member_id in member_emails:
+            board_members.append({
+                'id': member_id,
+                'email': member_emails[member_id]
+            })
+        elif member_id.startswith('temp_'):
+            email = member_id.replace('temp_', '').replace('_at_', '@').replace('_dot_', '.')
+            board_members.append({
+                'id': member_id,
+                'email': email
+            })
+        else:
+            user_ref = db.collection('users').document(member_id)
+            user_doc = user_ref.get()
+            if user_doc.exists:
+                user_data = user_doc.to_dict()
+                board_members.append({
+                    'id': member_id,
+                    'email': user_data.get('email', f"User {member_id[:6]}...")
+                })
+            else:
+                board_members.append({
+                    'id': member_id,
+                    'email': f"User {member_id[:6]}..."
+                })
+    
+    return board_members
