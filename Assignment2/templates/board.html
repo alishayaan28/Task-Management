@@ -128,6 +128,9 @@
             color: #333;
             font-weight: 600;
             margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         
         .board-description {
@@ -158,6 +161,18 @@
         .add-task-btn:hover {
             transform: translateY(-3px);
             box-shadow: 0 6px 15px rgba(67, 97, 238, 0.4);
+        }
+        
+        .board-owner-badge {
+            background-color: #e3f2fd;
+            color: #0d47a1;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
         }
         
         .tasks-container {
@@ -219,6 +234,11 @@
         }
         
         .task-item.overdue {
+            border-left-color: #ff3b30;
+            background-color: #fff9f9;
+        }
+
+        .task-item.unassigned {
             border-left-color: #ff3b30;
             background-color: #fff9f9;
         }
@@ -386,7 +406,14 @@
     <div class="content-area">
         <div class="board-header">
             <div class="board-title-section">
-                <h1 class="board-title">{{ board.title }}</h1>
+                <h1 class="board-title">
+                    {{ board.title }}
+                    {% if user_token.user_id == board.creator_id %}
+                    <span class="board-owner-badge">
+                        <i class="fas fa-crown"></i> Owner
+                    </span>
+                    {% endif %}
+                </h1>
                 <p class="board-description">{{ board.description }}</p>
             </div>
             
@@ -412,7 +439,7 @@
             {% if tasks %}
             <div class="tasks-list">
                 {% for task in tasks %}
-                <div class="task-item {% if task.status == 'completed' %}completed{% endif %}">
+                <div class="task-item {% if task.status == 'completed' %}completed{% elif task.unassigned %}unassigned{% endif %}">
                     <h3 class="task-title">
                         {% if task.status == 'completed' %}
                         <i class="fas fa-check-circle" style="color: #34c759; margin-right: 8px;"></i>
@@ -456,9 +483,6 @@
                         </div>
                         
                         <div class="task-actions">
-                            <a href="/board/{{ board.id }}/task/{{ task.id }}" class="task-action-btn">
-                                <i class="fas fa-eye"></i> View
-                            </a>
                             <a href="/board/{{ board.id }}/task/{{ task.id }}/edit" class="task-action-btn">
                                 <i class="fas fa-edit"></i> Edit
                             </a>
