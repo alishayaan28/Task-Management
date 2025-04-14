@@ -852,7 +852,6 @@ async def is_board_creator(board, user_id):
 
 
 @app.get("/board/{board_id}/edit", response_class=HTMLResponse)
-
 async def edit_board_page(request: Request, board_id: str):
 
     id_token = request.cookies.get("token")
