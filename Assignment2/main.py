@@ -963,8 +963,16 @@ async def manage_members_page(request: Request, board_id: str):
         if board.get('creator_id') != user_id:
             return RedirectResponse(url=f"/board/{board_id}")
         
+        member_emails = board.get('member_emails', {})
+        
         for member_id in board.get('members', []):
-            if member_id.startswith('temp_'):
+            if member_id in member_emails:
+                members_info.append({
+                    'id': member_id,
+                    'email': member_emails[member_id],
+                    'is_creator': member_id == board.get('creator_id', '')
+                })
+            elif member_id.startswith('temp_'):
                 email = member_id.replace('temp_', '').replace('_at_', '@').replace('_dot_', '.')
                 members_info.append({
                     'id': member_id,
@@ -984,7 +992,7 @@ async def manage_members_page(request: Request, board_id: str):
                 else:
                     members_info.append({
                         'id': member_id,
-                        'email': 'Unknown user',
+                        'email': f"User {member_id[:6]}...",
                         'is_creator': member_id == board.get('creator_id', '')
                     })
         
@@ -1021,13 +1029,32 @@ async def remove_member(request: Request, board_id: str, member_id: str):
             return RedirectResponse(url=f"/board/{board_id}")
         
         if member_id == board.get('creator_id'):
-            return RedirectResponse(url=f"/board/{board_id}/members")
+            return RedirectResponse(url=f"/board/{board_id}/members", status_code=303)
+        
+        tasks = await get_board_tasks(board_id)
+        tasks_to_update = []
+        
+        for task in tasks:
+            if 'assigned_users' in task and member_id in task['assigned_users']:
+                # Mark task as unassigned
+                task_ref = db.collection('task_boards').document(board_id).collection('tasks').document(task['id'])
+                task_ref.update({
+                    'assigned_users': [],
+                    'unassigned': True,
+                    'previously_assigned_to': member_id
+                })
+                tasks_to_update.append(task['id'])
         
         board_ref = db.collection('task_boards').document(board_id)
         members = board.get('members', [])
         if member_id in members:
             members.remove(member_id)
             board_ref.update({'members': members})
+            
+            member_emails = board.get('member_emails', {})
+            if member_id in member_emails:
+                del member_emails[member_id]
+                board_ref.update({'member_emails': member_emails})
         
         return RedirectResponse(url=f"/board/{board_id}/members", status_code=303)
         

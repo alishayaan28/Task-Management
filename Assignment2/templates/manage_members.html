@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manage Members - {{ board.title }}</title>
+    <script type="module" src="{{ url_for('static', path='/firebase-login.js') }}"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header-bar {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            background: linear-gradient(to right, #3a0ca3, #4361ee, #4cc9f0);
+            padding: 15px 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            box-sizing: border-box;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-right: 20px;
+        }
+        
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            background-color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #3a0ca3;
+            font-weight: bold;
+            font-size: 16px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .user-email {
+            font-weight: 500;
+            color: white;
+            background-color: rgba(255, 255, 255, 0.15);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 15px;
+            margin-right: auto;
+        }
+        
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 8px 15px;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        #sign-out {
+            background-color: rgba(247, 37, 133, 0.9);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-left: auto;
+        }
+        
+        #sign-out:hover {
+            background-color: #f72585;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .content-area {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .page-title {
+            font-size: 28px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .board-info {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .board-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .members-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .members-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .members-title {
+            font-size: 20px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .members-count {
+            background-color: #4361ee;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .members-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .member-item {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .member-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .member-avatar {
+            width: 36px;
+            height: 36px;
+            background-color: #e3f2fd;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0d47a1;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .member-email {
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .member-role {
+            font-size: 12px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background-color: #e3f2fd;
+            color: #0d47a1;
+            font-weight: 500;
+        }
+        
+        .member-role.creator {
+            background-color: #f3e5f5;
+            color: #6a1b9a;
+        }
+        
+        .member-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .remove-button {
+            background-color: #ffebee;
+            color: #c62828;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .remove-button:hover {
+            background-color: #ffcdd2;
+        }
+        
+        .add-button {
+            background-color: #4361ee;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            text-decoration: none;
+        }
+        
+        .add-button:hover {
+            background-color: #2a4ae4;
+        }
+        
+        .back-button {
+            background-color: #e0e0e0;
+            color: #333;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            text-decoration: none;
+        }
+        
+        .back-button:hover {
+            background-color: #ccc;
+        }
+        
+        .page-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .success-message {
+            background-color: #e8f5e9;
+            color: #1b5e20;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .error-message {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="header-bar" id="user-header">
+        <div class="user-section">
+            <div class="user-avatar">
+                {% if user_token.email %}
+                {{ user_token.email[0] | upper }}
+                {% else %}
+                U
+                {% endif %}
+            </div>
+            <p class="user-email" id="user-email-display">{{ user_token.email }}</p>
+        </div>
+        
+        <div class="nav-links">
+            <a href="/" class="nav-link">
+                <i class="fas fa-home"></i> Home
+            </a>
+            <a href="/board/{{ board.id }}" class="nav-link">
+                <i class="fas fa-clipboard-list"></i> Back to Board
+            </a>
+        </div>
+        
+        <button id="sign-out">
+            <i class="fas fa-sign-out-alt"></i> Sign out
+        </button>
+    </div>
+    
+    <div class="content-area">
+        <div class="page-header">
+            <h1 class="page-title">Manage Board Members</h1>
+        </div>
+        
+        <div class="board-info">
+            <h2 class="board-name">Board: {{ board.title }}</h2>
+        </div>
+        
+        {% if error_message %}
+        <div class="error-message">
+            <i class="fas fa-exclamation-circle"></i> {{ error_message }}
+        </div>
+        {% endif %}
+        
+        {% if success_message %}
+        <div class="success-message">
+            <i class="fas fa-check-circle"></i> {{ success_message }}
+        </div>
+        {% endif %}
+        
+        <div class="members-container">
+            <div class="members-header">
+                <h2 class="members-title">Board Members</h2>
+                <span class="members-count">{{ members_info|length }}</span>
+            </div>
+            
+            <div class="members-list">
+                {% for member in members_info %}
+                <div class="member-item">
+                    <div class="member-info">
+                        <div class="member-avatar">
+                            {{ member.email[0] | upper }}
+                        </div>
+                        <div>
+                            <p class="member-email">{{ member.email }}</p>
+                            <span class="member-role {% if member.is_creator %}creator{% endif %}">
+                                {% if member.is_creator %}
+                                <i class="fas fa-crown"></i> Creator
+                                {% else %}
+                                <i class="fas fa-user"></i> Member
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="member-actions">
+                        {% if not member.is_creator %}
+                        <form method="post" action="/board/{{ board.id }}/remove-member/{{ member.id }}">
+                            <button type="submit" class="remove-button">
+                                <i class="fas fa-user-minus"></i> Remove
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="page-actions">
+            <a href="/board/{{ board.id }}" class="back-button">
+                <i class="fas fa-arrow-left"></i> Back to Board
+            </a>
+            <a href="/board/{{ board.id }}/add-member" class="add-button">
+                <i class="fas fa-user-plus"></i> Add New Member
+            </a>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const signOutButton = document.getElementById('sign-out');
+            if (signOutButton) {
+                signOutButton.addEventListener('click', function() {
+                    if (typeof signOut === 'function') {
+                        signOut();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
