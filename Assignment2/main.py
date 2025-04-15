@@ -1245,70 +1245,120 @@ async def edit_task_page(request: Request, board_id: str, task_id: str):
     })
 
 @app.post("/board/{board_id}/task/{task_id}/edit")
+
 async def edit_task_submit(
+
     request: Request, 
+
     board_id: str,
+
     task_id: str,
+
     title: str = Form(...), 
+
     description: str = Form(""),
+
     due_date: str = Form(None),
+
     assigned_to: str = Form(None)
+
 ):
+
     id_token = request.cookies.get("token")
-    
+
     if not id_token:
+
         return RedirectResponse(url="/")
-    
+
     try:
+
         user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
         user_id = user_token['user_id']
-        
         board = await get_task_board(board_id)
-        
+
         if not board:
+
             return RedirectResponse(url="/")
-        
+
         if user_id not in board.get('members', []):
+
             email = user_token.get('email', '')
+
             temp_user_id = f"temp_{email.replace('@', '_at_').replace('.', '_dot_')}"
+
             if temp_user_id not in board.get('members', []):
+
                 return RedirectResponse(url="/")
-        
+
         task = await get_task(board_id, task_id)
-        
+
         if not task:
+
             return RedirectResponse(url=f"/board/{board_id}")
-        
+  
+
         existing_tasks = await get_board_tasks(board_id)
+
         for existing_task in existing_tasks:
+
             if (existing_task['title'].lower() == title.lower() and 
+
                 existing_task['id'] != task_id):
+
                 return templates.TemplateResponse('edit_task.html', {
+
                     'request': request,
+
                     'user_token': user_token,
+
                     'error_message': "Another task with this name already exists on this board.",
+
                     'board': board,
+
                     'task': task,
+
                     'board_members': await get_board_members(board)
+
                 })
-        
+
         assigned_users = []
+
         if assigned_to and assigned_to != "none":
+
             assigned_users = [assigned_to]
-        
-        task_ref = db.collection('task_boards').document(board_id).collection('tasks').document(task_id)
-        task_ref.update({
+
+        update_data = {
+
             'title': title,
+
             'description': description,
+
             'due_date': due_date,
+
             'assigned_users': assigned_users,
+
             'updated_at': firestore.SERVER_TIMESTAMP
-        })
+
+        }
+
+        if task.get('unassigned') and assigned_users:
+
+            update_data['unassigned'] = False
+
         
+
+        task_ref = db.collection('task_boards').document(board_id).collection('tasks').document(task_id)
+
+        task_ref.update(update_data)
+
+    
         return RedirectResponse(url=f"/board/{board_id}", status_code=303)
-        
+
+
     except ValueError as err:
+
         print(str(err))
+
         return RedirectResponse(url="/")
 
 # Routes for Deleting board
