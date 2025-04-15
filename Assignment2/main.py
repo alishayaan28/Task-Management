@@ -490,7 +490,6 @@ async def add_member_submit(request: Request, board_id: str, email: str = Form(.
             db.collection('users').document(temp_user_id).set(user_data)
             member_id = temp_user_id
             
-            # Store email directly in the board
             member_emails[member_id] = email
             
             print(f"Created temporary user record for {email} with ID {temp_user_id}")
@@ -498,11 +497,9 @@ async def add_member_submit(request: Request, board_id: str, email: str = Form(.
             member_id = users[0].id
             user_email = users[0].to_dict().get('email')
             
-            # Store email directly in the board
             member_emails[member_id] = user_email
 
         if member_id in board.get('members', []):
-            # Get members info for error message
             members_info = []
             for mid in board.get('members', []):
                 if mid in member_emails:
@@ -543,7 +540,6 @@ async def add_member_submit(request: Request, board_id: str, email: str = Form(.
         members = board.get('members', [])
         members.append(member_id)
         
-        # Update the board with new member and emails
         board_ref.update({
             'members': members,
             'member_emails': member_emails
@@ -551,7 +547,6 @@ async def add_member_submit(request: Request, board_id: str, email: str = Form(.
         
         updated_board = await get_task_board(board_id)
         
-        # Get members info for the success response
         members_info = []
         for mid in updated_board.get('members', []):
             if mid in member_emails:
@@ -598,7 +593,6 @@ async def add_member_submit(request: Request, board_id: str, email: str = Form(.
 async def ensure_user(request: Request):
 
     try:
-
         data = await request.json()
         user_id = data.get('uid')
         email = data.get('email')
@@ -765,7 +759,6 @@ async def create_task_submit(
             creator_id=user_id,
             assigned_users=assigned_users,
             due_date=due_date
-
         )
 
         return RedirectResponse(url=f"/board/{board_id}", status_code=303)        
