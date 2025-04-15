@@ -28,8 +28,11 @@ db = firestore.Client()
 async def root(request: Request):
 
     id_token = request.cookies.get("token")
+
     error_message = None
+
     user_token = None
+
     user_boards = []
 
     if id_token:
@@ -52,29 +55,46 @@ async def root(request: Request):
 
                     board_data['id'] = board.id
 
+                    
+
+                    board_data['is_creator'] = (board_data.get('creator_id') == user_id)
+
                     user_boards.append(board_data)
 
                 temp_user_id = f"temp_{email.replace('@', '_at_').replace('.', '_dot_')}"
+
                 boards_query_temp = db.collection('task_boards').where('members', 'array_contains', temp_user_id)
 
                 for board in boards_query_temp.stream():
 
                     board_data = board.to_dict()
+
                     board_data['id'] = board.id
+
+                    
+
+                    board_data['is_creator'] = (board_data.get('creator_id') == temp_user_id)
 
                     if not any(b['id'] == board.id for b in user_boards):
 
                         user_boards.append(board_data)
 
         except ValueError as err:
+
             print(str(err))
+
             user_token = None 
+
             error_message = str(err)
 
     return templates.TemplateResponse('main.html', {
+
         'request': request,
+
         'user_token': user_token,
+
         'error_message': error_message,
+
         'user_boards': user_boards
 
     })
@@ -85,7 +105,6 @@ async def logout():
     response = RedirectResponse(url="/")
     response.delete_cookie(key="token")
     return response
-
 
 # User functions
 async def create_user(user_id: str, email: str, name: str = ""):
@@ -186,7 +205,6 @@ async def assign_user_to_task(board_id: str, task_id: str, user_id: str):
             
         return True
     return False
-
 
 # Route for creating a new task board
 @app.get("/create-board", response_class=HTMLResponse)
@@ -322,10 +340,8 @@ async def view_board(request: Request, board_id: str):
 
     })
 
-
 # Routes for Add Member
 @app.get("/board/{board_id}/add-member", response_class=HTMLResponse)
-
 async def add_member_page(request: Request, board_id: str):
 
     id_token = request.cookies.get("token")
@@ -601,10 +617,8 @@ async def add_member_submit(request: Request, board_id: str, email: str = Form(.
         print(str(err))
         return RedirectResponse(url="/")
     
-
 # Route to check user in Firestore
 @app.post("/ensure-user")
-
 async def ensure_user(request: Request):
 
     try:
@@ -641,9 +655,7 @@ async def ensure_user(request: Request):
         print(f"Error ensuring user: {str(e)}")
 
         return {"status": "error", "message": str(e)}
-    
-
-    
+       
 # Create Task
 @app.get("/board/{board_id}/create-task", response_class=HTMLResponse)
 async def create_task_page(request: Request, board_id: str):
@@ -787,7 +799,6 @@ async def create_task_submit(
         print(str(err))
         return RedirectResponse(url="/")
     
-
 # Routes for task marking
 @app.post("/board/{board_id}/task/{task_id}/complete")
 async def complete_task(request: Request, board_id: str, task_id: str):
@@ -1036,7 +1047,6 @@ async def remove_member(request: Request, board_id: str, member_id: str):
         
         for task in tasks:
             if 'assigned_users' in task and member_id in task['assigned_users']:
-                # Mark task as unassigned
                 task_ref = db.collection('task_boards').document(board_id).collection('tasks').document(task['id'])
                 task_ref.update({
                     'assigned_users': [],
