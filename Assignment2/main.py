@@ -247,97 +247,73 @@ async def create_board_submit(request: Request, title: str = Form(...), descript
 
 # Routes for task board
 @app.get("/board/{board_id}", response_class=HTMLResponse)
-
 async def view_board(request: Request, board_id: str):
-
     id_token = request.cookies.get("token")
-
     error_message = None
-
     user_token = None
-
     board = None
-
     tasks = []
 
     if not id_token:
-
         return RedirectResponse(url="/")
 
     try:
-
         user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
-
         user_id = user_token['user_id']
-
         email = user_token.get('email', '')
-
         temp_user_id = f"temp_{email.replace('@', '_at_').replace('.', '_dot_')}"
-
         board = await get_task_board(board_id)
 
         if not board:
-
             return RedirectResponse(url="/")
 
         if user_id not in board.get('members', []) and temp_user_id not in board.get('members', []):
-
             return RedirectResponse(url="/")
 
         if temp_user_id in board.get('members', []) and user_id not in board.get('members', []):
-
             board_ref = db.collection('task_boards').document(board_id)
-
             members = board.get('members', [])
-
             members.remove(temp_user_id)
-
             members.append(user_id)
-
             board_ref.update({'members': members})
-
             board['members'] = members
 
         tasks = await get_board_tasks(board_id)
 
+        total_tasks = len(tasks)
+        completed_tasks = 0
+        active_tasks = 0
+
         for task in tasks:
-
             if task.get('status') == 'completed' and task.get('completed_at'):
-
+                completed_tasks += 1
+                
                 completed_at = task['completed_at']
-
                 if hasattr(completed_at, 'seconds'):
-
                     import datetime
-
                     task['completed_at_formatted'] = datetime.datetime.fromtimestamp(
-
                         completed_at.seconds
-
                     ).strftime('%Y-%m-%d %H:%M')
-
                 else:
-
                     task['completed_at_formatted'] = completed_at.strftime('%Y-%m-%d %H:%M')
+            else:
+                active_tasks += 1
 
     except ValueError as err:
-
         print(str(err))
-
         return RedirectResponse(url="/")
 
     return templates.TemplateResponse('board.html', {
-
         'request': request,
-
         'user_token': user_token,
-
         'error_message': error_message,
-
         'board': board,
-
-        'tasks': tasks
-
+        'tasks': tasks,
+        'task_counters': {
+            'total': total_tasks,
+            'completed': completed_tasks,
+            'active': active_tasks
+        }
     })
 
 # Routes for Add Member
@@ -1116,10 +1092,15 @@ async def delete_board_page(request: Request, board_id: str):
         'has_other_members': has_other_members
     })
 
-@app.post("/board/{board_id}/delete")
-async def delete_board_submit(request: Request, board_id: str, force: bool = Form(False)):
+@app.get("/board/{board_id}/delete", response_class=HTMLResponse)
+async def delete_board_page(request: Request, board_id: str):
     id_token = request.cookies.get("token")
-    
+    error_message = None
+    user_token = None
+    board = None
+    has_tasks = False
+    has_other_members = False
+
     if not id_token:
         return RedirectResponse(url="/")
     
@@ -1141,27 +1122,18 @@ async def delete_board_submit(request: Request, board_id: str, force: bool = For
         members = board.get('members', [])
         has_other_members = len(members) > 1
         
-        if force or (not has_tasks and not has_other_members):
-            if has_tasks:
-                tasks_ref = db.collection('task_boards').document(board_id).collection('tasks')
-                for task in tasks:
-                    tasks_ref.document(task['id']).delete()
-            
-            db.collection('task_boards').document(board_id).delete()
-            return RedirectResponse(url="/", status_code=303)
-        else:
-            return templates.TemplateResponse('delete_board.html', {
-                'request': request,
-                'user_token': user_token,
-                'error_message': "Cannot delete board with tasks or other members without confirmation.",
-                'board': board,
-                'has_tasks': has_tasks,
-                'has_other_members': has_other_members
-            })
-        
     except ValueError as err:
         print(str(err))
         return RedirectResponse(url="/")
+
+    return templates.TemplateResponse('delete_board.html', {
+        'request': request,
+        'user_token': user_token,
+        'error_message': error_message,
+        'board': board,
+        'has_tasks': has_tasks,
+        'has_other_members': has_other_members
+    })
 
 
 async def get_board_members(board):

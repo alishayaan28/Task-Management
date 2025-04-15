@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Delete Board - {{ board.title }}</title>
+    <script type="module" src="{{ url_for('static', path='/firebase-login.js') }}"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header-bar {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            background: linear-gradient(to right, #3a0ca3, #4361ee, #4cc9f0);
+            padding: 15px 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            box-sizing: border-box;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-right: 20px;
+        }
+        
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            background-color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #3a0ca3;
+            font-weight: bold;
+            font-size: 16px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .user-email {
+            font-weight: 500;
+            color: white;
+            background-color: rgba(255, 255, 255, 0.15);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 15px;
+            margin-right: auto;
+        }
+        
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 8px 15px;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        #sign-out {
+            background-color: rgba(247, 37, 133, 0.9);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-left: auto;
+        }
+        
+        #sign-out:hover {
+            background-color: #f72585;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .content-area {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .page-title {
+            font-size: 28px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .confirm-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .warning-text {
+            color: #d32f2f;
+            font-weight: 500;
+            margin-bottom: 25px;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        .back-btn {
+            padding: 14px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-size: 16px;
+            background-color: #e5e5e5;
+            color: #333;
+            flex: 1;
+            text-align: center;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .delete-btn {
+            padding: 14px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-size: 16px;
+            background-color: #f44336;
+            color: white;
+            flex: 1;
+        }
+        
+        .back-btn:hover {
+            transform: translateY(-3px);
+            background-color: #d5d5d5;
+        }
+        
+        .delete-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(244, 67, 54, 0.4);
+        }
+        
+        .error-message {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .status-list {
+            margin-bottom: 20px;
+        }
+        
+        .status-item {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .status-item i {
+            margin-right: 10px;
+        }
+        
+        .status-error {
+            color: #d32f2f;
+        }
+        
+        .status-success {
+            color: #2e7d32;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="header-bar" id="user-header">
+        <div class="user-section">
+            <div class="user-avatar">
+                {% if user_token.email %}
+                {{ user_token.email[0] | upper }}
+                {% else %}
+                U
+                {% endif %}
+            </div>
+            <p class="user-email" id="user-email-display">{{ user_token.email }}</p>
+        </div>
+        
+        <div class="nav-links">
+            <a href="/" class="nav-link">
+                <i class="fas fa-home"></i> Home
+            </a>
+            <a href="/board/{{ board.id }}" class="nav-link">
+                <i class="fas fa-clipboard-list"></i> Back to Board
+            </a>
+        </div>
+        
+        <button id="sign-out">
+            <i class="fas fa-sign-out-alt"></i> Sign out
+        </button>
+    </div>
+    
+    <div class="content-area">
+        <div class="page-header">
+            <h1 class="page-title">Delete Board</h1>
+        </div>
+        
+        {% if error_message %}
+        <div class="error-message">
+            <i class="fas fa-exclamation-circle"></i> {{ error_message }}
+        </div>
+        {% endif %}
+        
+        <div class="confirm-container">
+            <h2>Are you sure you want to delete "{{ board.title }}"?</h2>
+            <p class="warning-text">This action cannot be undone.</p>
+            
+            <div class="status-list">
+                <div class="status-item {% if has_tasks %}status-error{% else %}status-success{% endif %}">
+                    <i class="fas {% if has_tasks %}fa-times-circle{% else %}fa-check-circle{% endif %}"></i>
+                    <span>
+                        {% if has_tasks %}
+                        This board has tasks that need to be deleted.
+                        {% else %}
+                        No tasks on this board.
+                        {% endif %}
+                    </span>
+                </div>
+                
+                <div class="status-item {% if has_other_members %}status-error{% else %}status-success{% endif %}">
+                    <i class="fas {% if has_other_members %}fa-times-circle{% else %}fa-check-circle{% endif %}"></i>
+                    <span>
+                        {% if has_other_members %}
+                        This board has other members. You must remove them before deleting.
+                        {% else %}
+                        No other members on this board.
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            
+            <form method="post" action="/board/{{ board.id }}/delete">
+                <input type="hidden" name="force" value="true">
+                
+                <div class="form-actions">
+                    <a href="/board/{{ board.id }}" class="back-btn">
+                        <i class="fas fa-arrow-left"></i> Cancel
+                    </a>
+                    
+                    {% if not has_other_members %}
+                    <button type="submit" class="delete-btn" {% if has_other_members %}disabled{% endif %}>
+                        <i class="fas fa-trash"></i> Delete Board
+                    </button>
+                    {% else %}
+                    <a href="/board/{{ board.id }}/members" class="delete-btn">
+                        <i class="fas fa-users"></i> Manage Members First
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const signOutButton = document.getElementById('sign-out');
+            if (signOutButton) {
+                signOutButton.addEventListener('click', function() {
+                    if (typeof signOut === 'function') {
+                        signOut();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
