@@ -1085,49 +1085,6 @@ async def delete_board_page(request: Request, board_id: str):
         'has_other_members': has_other_members
     })
 
-@app.get("/board/{board_id}/delete", response_class=HTMLResponse)
-async def delete_board_page(request: Request, board_id: str):
-    id_token = request.cookies.get("token")
-    error_message = None
-    user_token = None
-    board = None
-    has_tasks = False
-    has_other_members = False
-
-    if not id_token:
-        return RedirectResponse(url="/")
-    
-    try:
-        user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
-        user_id = user_token['user_id']
-        
-        board = await get_task_board(board_id)
-        
-        if not board:
-            return RedirectResponse(url="/")
-        
-        if board.get('creator_id') != user_id:
-            return RedirectResponse(url=f"/board/{board_id}")
-        
-        tasks = await get_board_tasks(board_id)
-        has_tasks = len(tasks) > 0
-        
-        members = board.get('members', [])
-        has_other_members = len(members) > 1
-        
-    except ValueError as err:
-        print(str(err))
-        return RedirectResponse(url="/")
-
-    return templates.TemplateResponse('delete_board.html', {
-        'request': request,
-        'user_token': user_token,
-        'error_message': error_message,
-        'board': board,
-        'has_tasks': has_tasks,
-        'has_other_members': has_other_members
-    })
-
 
 async def get_board_members(board):
     """Get member information for a board"""
@@ -1326,7 +1283,7 @@ async def edit_task_submit(
 
         return RedirectResponse(url="/")
 
-# Routes for Deleting board
+# Routes for Deleting board Get Method
 @app.get("/board/{board_id}/task/{task_id}/delete", response_class=HTMLResponse)
 async def delete_task_page(request: Request, board_id: str, task_id: str):
     id_token = request.cookies.get("token")
@@ -1399,6 +1356,46 @@ async def delete_task_submit(request: Request, board_id: str, task_id: str):
         task_ref.delete()
         
         return RedirectResponse(url=f"/board/{board_id}", status_code=303)
+        
+    except ValueError as err:
+        print(str(err))
+        return RedirectResponse(url="/")
+    
+
+
+@app.post("/board/{board_id}/delete")
+async def delete_board_submit(request: Request, board_id: str, force: bool = Form(False)):
+    id_token = request.cookies.get("token")
+    
+    if not id_token:
+        return RedirectResponse(url="/")
+    
+    try:
+        user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
+        user_id = user_token['user_id']
+        
+        board = await get_task_board(board_id)
+        
+        if not board:
+            return RedirectResponse(url="/")
+        
+        if board.get('creator_id') != user_id:
+            return RedirectResponse(url=f"/board/{board_id}")
+        
+        members = board.get('members', [])
+        if len(members) > 1 and not force:
+            return RedirectResponse(url=f"/board/{board_id}/members", status_code=303)
+        
+        tasks_ref = db.collection('task_boards').document(board_id).collection('tasks')
+        tasks = tasks_ref.stream()
+        
+        for task in tasks:
+            task.reference.delete()
+        
+        board_ref = db.collection('task_boards').document(board_id)
+        board_ref.delete()
+        
+        return RedirectResponse(url="/", status_code=303)
         
     except ValueError as err:
         print(str(err))
