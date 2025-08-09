@@ -5,12 +5,14 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, si
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyCaZWhN23dRlBmFj0suHu0a_Ti7SGQnGfg",
-    authDomain: "marine-atrium-453021-q8.firebaseapp.com",
-    projectId: "marine-atrium-453021-q8",
-    storageBucket: "marine-atrium-453021-q8.firebasestorage.app",
-    messagingSenderId: "54754487927",
-    appId: "1:54754487927:web:2d9b20ae2aed73ed00e072"
+    apiKey: "",
+    authDomain: "",
+    databaseURL: "",
+    projectId: "",
+    storageBucket: "",
+    messagingSenderId: "",
+    appId: "",
+    measurementId: ""
   };
 
 // Declare Firebase app and auth globally
